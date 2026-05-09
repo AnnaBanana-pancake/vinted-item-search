@@ -149,6 +149,16 @@ PIACI_ARAK = {
 
 CONDITION_MAP = {1: "Új", 2: "Kiváló", 3: "Jó", 4: "Megfelelő", 6: "Gyűjthető"}
 
+# ── Telefon azonosító kulcsszavak ─────────────────────────────────────────────
+# Ha a cím NEM tartalmaz egyet sem ezek közül → kiszűrjük (cipő, ruha, stb.)
+TELEFON_KULCSSZAVAK = [
+    "iphone", "samsung", "galaxy", "pixel", "xiaomi", "poco", "redmi",
+    "oneplus", "motorola", "huawei", "oppo", "realme", "nokia", "sony",
+    "xperia", "honor", "vivo", "asus", "rog phone", "fairphone",
+    "telefon", "mobiltelefon", "smartphone", "okostelefon",
+    "128gb", "256gb", "64gb", "512gb", "16gb", "32gb",
+]
+
 
 def teljesiti_funkciokat(cim: str, leiras: str) -> tuple[bool, list[str]]:
     """
@@ -226,6 +236,12 @@ def pontszam(item: dict) -> float:
 def parse_item(raw, query: str) -> dict | None:
     """Egy nyers Vinted item → tisztított dict, vagy None ha szűrve."""
 
+    # ── Telefon szűrő — cipő/ruha/egyéb kiszűrése ────────────────────────────
+    cim    = str(getattr(raw, "title", "") or "")
+    leiras = str(getattr(raw, "description", "") or "")
+    if not any(kw in cim.lower() for kw in TELEFON_KULCSSZAVAK):
+        return None
+
     # ── Állapot ───────────────────────────────────────────────────────────────
     cond_id = getattr(raw, "status_id", None) or getattr(raw, "condition_id", None)
     try:
@@ -251,9 +267,6 @@ def parse_item(raw, query: str) -> dict | None:
     if feedback_db >= MIN_SELLER_FEEDBACKS and rating < MIN_SELLER_RATING:
         return None
 
-    # ── Cím & leírás ─────────────────────────────────────────────────────────
-    cim     = str(getattr(raw, "title", "") or "")
-    leiras  = str(getattr(raw, "description", "") or "")
 
     # ── Funkció szűrők ───────────────────────────────────────────────────────
     megfelel, talalt_funkciok = teljesiti_funkciokat(cim, leiras)
@@ -298,7 +311,6 @@ def scrape_query(scraper: VintedScraper, query: str) -> list[dict]:
     try:
         raw_items = scraper.search({
             "search_text":  query,
-            "catalog_ids":  2639,         # Mobiltelefon kategória
             "order":        "newest_first",
             "per_page":     96,
             "price_from":   MIN_PRICE,
