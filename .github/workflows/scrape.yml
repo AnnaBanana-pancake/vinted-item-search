@@ -30,9 +30,9 @@ jobs:
       - name: Run scraper
         run: python scraper.py
 
-      - name: Run analyzer (Claude AI)
+      - name: Run analyzer (Gemini AI)
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ vars.GEMINI_API_KEY }}
         run: python analyzer.py
 
       - name: Commit & push results
