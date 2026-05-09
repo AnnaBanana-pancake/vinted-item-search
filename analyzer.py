@@ -1,17 +1,16 @@
 """
-Vinted Telefon Analyzer — Gemini AI elemzés
+Vinted Telefon Analyzer — Gemini AI elemzes
 ============================================
-Beolvassa a scraper.py által generált data/results.json-t,
-kiszűri a top 10 valódi telefont minimumár szűrővel (tokok kiesnek),
-lekéri a részletes leírást a Vinted API-ból,
-majd Gemini AI-val értékeli melyik a legjobb deal.
+Beolvassa a scraper.py altal generalt data/results.json-t,
+kiszuri a top 10 valodi telefont minimum ar szuroval,
+lekeri a reszletes leirst a Vinted API-bol,
+majd Gemini AI-val ertekeli melyik a legjobb deal.
 
-Szükséges:
-    pip install vinted-scraper google-generativeai
+Szukseges:
+    pip install vinted-scraper google-genai
 
-Gemini API kulcs beállítása:
-    GitHub → Settings → Secrets and variables → Actions → Variables → GEMINI_API_KEY
-    (ingyenes: aistudio.google.com/app/apikey)
+Gemini API kulcs:
+    GitHub -> Settings -> Secrets -> Actions -> GEMINI_API_KEY
 """
 
 import json
@@ -22,24 +21,23 @@ from pathlib import Path
 try:
     from vinted_scraper import VintedScraper
 except ImportError:
-    raise SystemExit("Hiányzó csomag! Futtasd: pip install vinted-scraper")
+    raise SystemExit("Hianyzo csomag! Futtasd: pip install vinted-scraper")
 
 try:
-    import google.generativeai as genai
+    from google import genai
 except ImportError:
-    raise SystemExit("Hiányzó csomag! Futtasd: pip install google-generativeai")
+    raise SystemExit("Hianyzo csomag! Futtasd: pip install google-genai")
 
 
-# ── Beállítások ────────────────────────────────────────────────────────────────
+# ── Beallitasok ───────────────────────────────────────────────────────────────
 
 BASE_URL    = "https://www.vinted.hu"
 INPUT_FILE  = Path("data/results.json")
 OUTPUT_FILE = Path("data/analysis.md")
 TOP_N       = 10
 
-# ── Minimumár modellenkénti szűrő ─────────────────────────────────────────────
-# Ha egy "iPhone 15 Pro Max" 8000 Ft-ért szerepel, az biztosan tok.
-# Az alábbi értékek az adott modell legalacsonyabb REÁLIS ára Ft-ban.
+# ── Minimum ar modellenként (Ft) ──────────────────────────────────────────────
+# Ha az item ara ez alatt van, biztosan tok/kiegeszito -> kiszurjuk
 
 MINIMUM_ARAK = {
     "iphone 15 pro max": 200000,
@@ -82,7 +80,7 @@ MINIMUM_ARAK = {
     "motorola edge 40 pro": 55000,
 }
 
-# ── Szöveges kiszűrők ─────────────────────────────────────────────────────────
+# ── Szoveges kiszurok ─────────────────────────────────────────────────────────
 TOK_SZAVAK = [
     "tok ", " tok", "tokot", "telefontok",
     "case", "cover", "etui", "husa", "husă", "coque", "funda",
@@ -128,7 +126,7 @@ def get_top_phones(data: list[dict], n: int) -> list[dict]:
     for item in data:
         if not item.get("azonositott_modell"):
             continue
-        megfelel, ok = is_valodi_telefon(item)
+        megfelel, _ = is_valodi_telefon(item)
         if megfelel:
             valodiak.append(item)
         else:
@@ -194,18 +192,16 @@ def analyze_with_gemini(phones: list[dict]) -> str:
     if not api_key:
         raise SystemExit(
             "Hianyzo API kulcs!\n"
-            "GitHub: Settings > Secrets and variables > Actions > Variables > GEMINI_API_KEY\n"
+            "GitHub: Settings > Secrets > Actions > GEMINI_API_KEY\n"
             "Helyi: export GEMINI_API_KEY=AIza..."
         )
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
-
+    client = genai.Client(api_key=api_key)
     telefon_adatok = format_for_ai(phones)
 
     prompt = f"""Te egy tapasztalt okostelefon-szakerto vagy, aki segit megtalalni a legjobb ar-ertek aranyú hasznalt telefont a Vinted piacteren.
 
-Az alabbiakban a jelenleg elerheto legjobb ajanaltok listaja. A piaci ar szazaleka azt mutatja, hany szazaleka az adott ar a tipikus hasznalt bolti arnak — minel alacsonyabb, annal jobb deal.
+Az alabbiakban a jelenleg elerheto legjobb ajanlatok listaja. A piaci ar szazaleka azt mutatja, hany szazaleka az adott ar a tipikus hasznalt bolti arnak — minel alacsonyabb, annal jobb deal.
 
 {telefon_adatok}
 
@@ -213,13 +209,16 @@ Kerem, elemezd ezeket az ajanlaltokat es:
 
 1. Jelold meg a TOP 3 legjobb dealt (indokold: ar, allapot, elado megbizhatosaga alapjan)
 2. Hivd fel figyelmet ha valamelyik gyanussan olcso vagy a leiras alapjan problemás
-3. Adj rovid altalanos tanácsot mire figyeljen a vevo vásárlás elott
+3. Adj rovid altalanos tanácsot mire figyeljen a vevo vasarlas elott
 
 Valaszolj magyarul, kozerthetoen. Legy konkret — irj arakat es modellneveket.
 """
 
     print("\n  Gemini AI elemzes folyamatban...")
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt,
+    )
     return response.text
 
 
