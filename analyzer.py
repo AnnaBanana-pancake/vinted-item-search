@@ -215,11 +215,21 @@ Valaszolj magyarul, kozerthetoen. Legy konkret — irj arakat es modellneveket.
 """
 
     print("\n  Gemini AI elemzes folyamatban...")
-    response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=prompt,
-    )
-    return response.text
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+            )
+            return response.text
+        except Exception as e:
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                wait = 30 * (attempt + 1)
+                print(f"  Rate limit, varakozas {wait}s...")
+                time.sleep(wait)
+            else:
+                raise
+    raise SystemExit("Gemini API rate limit - probald ujra kesobb.")
 
 
 def save_analysis(phones: list[dict], ai_text: str) -> None:
